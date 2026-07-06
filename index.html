@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Mi Catorcena</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#FDF3FA; --bg-deep:#F3E3F5; --surface:#FFFFFF; --surface-2:#F8E8F5;
+    --gold:#C9A0DC; --gold-dim:#A87BC4; --gold-text:#8E44AD;
+    --coral:#F28B9E; --sage:#A8D8B9; --cream:#4A2358; --muted:#9B7EA8;
+    --line: rgba(74,35,88,0.12); --radius: 16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(201,160,220,0.28), transparent 42%),
+      radial-gradient(circle at 88% 18%, rgba(242,139,190,0.22), transparent 45%),
+      var(--bg);
+    color:var(--cream); font-family:'Work Sans', sans-serif; min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{ font-family:'Fraunces', serif; }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:28px 20px 60px; }
+
+  header{ display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap;}
+  header .eyebrow{ color:var(--gold-text); letter-spacing:.14em; font-size:11px; text-transform:uppercase; font-weight:600; margin-bottom:4px;}
+  header h1{ font-size:34px; font-weight:600; margin:0; }
+  header .sub{ color:var(--muted); font-size:13px; margin-top:4px;}
+
+  .chain{ display:flex; align-items:center; gap:0; margin: 6px 0 28px; overflow-x:auto; padding:14px 4px; }
+  .coin{
+    flex:0 0 auto; width:52px; height:52px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:600;
+    border:2px solid var(--line); color:var(--muted); background:var(--surface);
+    position:relative; transition:transform .2s;
+  }
+  .coin.done{ border-color:var(--sage); color:var(--sage); background:rgba(168,216,185,0.12); }
+  .coin.now{ border-color:var(--gold-text); color:var(--gold-text); background:rgba(201,160,220,0.14); transform:scale(1.15); box-shadow:0 0 0 4px rgba(201,160,220,0.15);}
+  .link{ flex:0 0 auto; width:26px; height:2px; background:var(--line); }
+  .link.done{ background:var(--sage); }
+
+  nav.tabs{ display:flex; gap:6px; margin-bottom:24px; border-bottom:1px solid var(--line); flex-wrap:wrap;}
+  nav.tabs button{
+    background:none; border:none; color:var(--muted); font-family:'Work Sans';
+    font-size:14px; font-weight:500; padding:10px 16px; cursor:pointer;
+    border-bottom:2px solid transparent; margin-bottom:-1px; transition:.15s;
+  }
+  nav.tabs button:hover{ color:var(--cream); }
+  nav.tabs button.active{ color:var(--gold-text); border-bottom-color:var(--gold-text); }
+
+  .view{ display:none; animation:fade .25s ease; }
+  .view.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
+  .card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; box-shadow:0 4px 18px rgba(155,110,180,0.10);}
+  .card .label{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:600;}
+  .card .value{ font-family:'IBM Plex Mono'; font-size:26px; font-weight:600; margin-top:6px; color:var(--cream);}
+  .card .value.gold{ color:var(--gold-text);}
+  .card .value.sage{ color:var(--sage);}
+  .card .value.coral{ color:var(--coral);}
+
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:22px; margin-bottom:18px; box-shadow:0 4px 18px rgba(155,110,180,0.10);}
+  .panel h3{ font-size:17px; font-weight:600; margin:0 0 14px; }
+  .panel h3 .sm{ color:var(--muted); font-weight:400; font-size:12px; font-family:'Work Sans';}
+
+  .semaforo{ display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:12px; margin-bottom:18px; }
+  .semaforo .dot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; }
+  .semaforo.verde{ background:rgba(168,216,185,0.14); border:1px solid rgba(168,216,185,0.35); }
+  .semaforo.verde .dot{ background:var(--sage); box-shadow:0 0 8px var(--sage);}
+  .semaforo.amarillo{ background:rgba(201,160,220,0.14); border:1px solid rgba(201,160,220,0.35); }
+  .semaforo.amarillo .dot{ background:var(--gold); box-shadow:0 0 8px var(--gold);}
+  .semaforo.rojo{ background:rgba(242,139,158,0.14); border:1px solid rgba(242,139,158,0.35); }
+  .semaforo.rojo .dot{ background:var(--coral); box-shadow:0 0 8px var(--coral);}
+  .semaforo .txt{ font-size:13px; }
+  .semaforo b{ font-family:'IBM Plex Mono'; }
+
+  .item-row{ margin-bottom:16px; }
+  .item-row .top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; font-size:14px;}
+  .item-row .top .nombre{ font-weight:600; }
+  .item-row .top .cifras{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--muted);}
+  .bar-track{ height:10px; border-radius:6px; background:var(--bg-deep); overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:6px; background:linear-gradient(90deg, var(--gold-dim), var(--gold)); transition:width .4s ease; }
+
+  .gasto-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .gasto-row:last-child{ border-bottom:none; }
+  .gasto-row .m{ font-family:'IBM Plex Mono'; color:var(--gold-text); font-weight:600; }
+
+  button.btn{
+    background:var(--gold); color:#FFFFFF; border:none; border-radius:8px;
+    padding:8px 14px; font-weight:600; font-size:13px; cursor:pointer; font-family:'Work Sans';
+    transition:filter .15s;
+  }
+  button.btn:hover{ filter:brightness(1.08); }
+  button.btn.ghost{ background:none; border:1px solid var(--line); color:var(--cream); }
+  input[type=number]{
+    background:var(--bg-deep); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:8px 10px; font-family:'IBM Plex Mono'; font-size:13px; width:100%;
+  }
+  label.f{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; display:block; margin-bottom:4px;}
+
+  table{ width:100%; border-collapse:collapse; font-size:13px;}
+  th{ text-align:left; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:8px 6px; border-bottom:1px solid var(--line);}
+  td{ padding:9px 6px; border-bottom:1px solid var(--line); font-family:'IBM Plex Mono'; }
+  tr:last-child td{ border-bottom:none; }
+
+  .calendar-list{ display:flex; flex-direction:column; gap:10px; }
+  .cal-item{ display:flex; justify-content:space-between; align-items:center; background:var(--bg-deep); border-radius:10px; padding:12px 14px; border:1px solid var(--line);}
+  .cal-item .d{ font-weight:600; font-size:14px; }
+  .cal-item .items{ font-size:12px; color:var(--muted); margin-top:2px;}
+  .badge{ font-size:11px; padding:3px 9px; border-radius:20px; font-weight:600; font-family:'IBM Plex Mono'; background:rgba(201,160,220,0.20); color:var(--gold-text);}
+
+  .compra-result{ margin-top:18px; padding:18px; border-radius:12px; display:none; }
+  .compra-result.ok{ background:rgba(168,216,185,0.12); border:1px solid rgba(168,216,185,0.35); display:block;}
+  .compra-result.no{ background:rgba(242,139,158,0.12); border:1px solid rgba(242,139,158,0.35); display:block;}
+  .compra-result h4{ margin:0 0 6px; font-family:'Fraunces'; font-size:18px;}
+  .compra-result p{ margin:2px 0; font-size:13px; color:var(--muted);}
+
+  .chart-box{ height:240px; position:relative; }
+  .foot-note{ text-align:center; color:var(--muted); font-size:12px; margin-top:30px; }
+
+  #loadingScreen, #errorScreen{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:60vh; text-align:center; padding:20px;
+  }
+  #errorScreen{ display:none; }
+  .spinner{
+    width:36px; height:36px; border-radius:50%;
+    border:4px solid var(--line); border-top-color:var(--gold);
+    animation:spin 1s linear infinite; margin-bottom:16px;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+  #app{ display:none; }
+  .refresh-btn{ position:fixed; bottom:20px; right:20px; z-index:10; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div id="loadingScreen">
+    <div class="spinner"></div>
+    <div style="color:var(--muted); font-size:14px;">Leyendo tu Excel...</div>
+  </div>
+
+  <div id="errorScreen">
+    <h2 style="color:var(--coral);">No pude leer tu archivo 😕</h2>
+    <p style="color:var(--muted); max-width:420px; font-size:14px;">
+      Revisa que en el repositorio de GitHub exista un archivo llamado exactamente
+      <b class="mono">data.xlsx</b> en la misma carpeta que esta página.
+    </p>
+    <button class="btn" onclick="location.reload()" style="margin-top:14px;">Reintentar</button>
+  </div>
+
+  <div id="app">
+    <header>
+      <div>
+        <div class="eyebrow">Mi Catorcena · Control Personal</div>
+        <h1>Tu dinero, quincena a quincena</h1>
+        <div class="sub" id="ultimaActualizacion">Leyendo data.xlsx...</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Deuda restante</div>
+        <div class="mono" id="headerDeuda" style="font-size:24px;color:var(--gold-text);font-weight:600;">$0</div>
+      </div>
+    </header>
+
+    <div class="chain" id="chain"></div>
+
+    <nav class="tabs" id="tabs">
+      <button data-view="resumen" class="active">Resumen</button>
+      <button data-view="deudas">Deudas</button>
+      <button data-view="ahorro">Ahorro</button>
+      <button data-view="calendario">Calendario</button>
+      <button data-view="compra">¿Puedo comprarlo?</button>
+      <button data-view="reportes">Reportes</button>
+    </nav>
+
+    <div class="view active" id="view-resumen">
+      <div class="semaforo" id="semaforo"><div class="dot"></div><div class="txt" id="semaforoTxt"></div></div>
+      <div class="grid">
+        <div class="card"><div class="label">Ingreso / catorcena</div><div class="value gold" id="rIngreso">$0</div></div>
+        <div class="card"><div class="label">Gastos fijos</div><div class="value" id="rGastos">$0</div></div>
+        <div class="card"><div class="label">Libre disponible</div><div class="value sage" id="rLibre">$0</div></div>
+        <div class="card"><div class="label">Deuda total</div><div class="value coral" id="rDeuda">$0</div></div>
+      </div>
+      <div class="panel">
+        <h3>Distribución de gastos <span class="sm">catorcenal</span></h3>
+        <div class="chart-box"><canvas id="pieGastos"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Tus gastos fijos <span class="sm">tal como están en tu Excel</span></h3>
+        <div id="gastosList"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-deudas">
+      <div class="panel">
+        <h3>Tus deudas</h3>
+        <div id="deudasList"></div>
+      </div>
+      <div class="panel">
+        <h3>Plan sugerido <span class="sm">con tu libre catorcenal actual</span></h3>
+        <p id="planTexto" style="font-size:14px; color:var(--muted); line-height:1.6;"></p>
+      </div>
+    </div>
+
+    <div class="view" id="view-ahorro">
+      <div class="grid">
+        <div class="card"><div class="label">Ahorro acumulado</div><div class="value sage" id="ahorroTotal">$0</div></div>
+        <div class="card"><div class="label">Catorcenas registradas</div><div class="value" id="ahorroCount">0</div></div>
+        <div class="card"><div class="label">Promedio por catorcena</div><div class="value gold" id="ahorroProm">$0</div></div>
+      </div>
+      <div class="panel">
+        <h3>Historial</h3>
+        <div class="chart-box" style="margin-bottom:18px;"><canvas id="lineAhorro"></canvas></div>
+        <table><thead><tr><th>Fecha</th><th>Monto</th></tr></thead><tbody id="ahorroTabla"></tbody></table>
+      </div>
+    </div>
+
+    <div class="view" id="view-calendario">
+      <div class="panel">
+        <h3>Próximas fechas de pago</h3>
+        <div class="calendar-list" id="proximosPagosList"></div>
+      </div>
+      <div class="panel"><h3>Pagos recurrentes por catorcena</h3><div class="calendar-list" id="calendarioList"></div></div>
+    </div>
+
+    <div class="view" id="view-compra">
+      <div class="panel">
+        <h3>¿Puedo comprarlo? <span class="sm">antes de dar el "agregar al carrito"</span></h3>
+        <label class="f">¿Cuánto cuesta lo que quieres comprar?</label>
+        <input type="number" id="compraMonto" placeholder="Ej. 800">
+        <div style="height:14px"></div>
+        <button class="btn" id="btnCompra">Revisar</button>
+        <div class="compra-result" id="compraResultado"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-reportes">
+      <div class="panel"><h3>Reporte mensual</h3><div class="chart-box"><canvas id="barReporte"></canvas></div></div>
+      <div class="panel">
+        <h3>Resumen del mes</h3>
+        <table><tbody>
+          <tr><td>Ingreso mensual (2 catorcenas)</td><td id="repIngreso"></td></tr>
+          <tr><td>Gastos fijos mensuales</td><td id="repGastos"></td></tr>
+          <tr><td>Libre mensual</td><td id="repLibre"></td></tr>
+          <tr><td>Ahorro registrado</td><td id="repAhorro"></td></tr>
+          <tr><td>Deuda pendiente</td><td id="repDeuda"></td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    <div class="foot-note">Esta página lee directo tu archivo data.xlsx · Actualiza el Excel en GitHub para ver cambios</div>
+  </div>
+</div>
+
+<button class="btn refresh-btn" onclick="location.reload()" id="refreshBtn" style="display:none;">🔄 Actualizar</button>
+
+<script>
+let state = { ingreso:0, gastos:[], deudas:[], ahorros:[] };
+let charts = {};
+
+function cellText(row, idx){
+  if(!row || row[idx]===undefined || row[idx]===null) return '';
+  return String(row[idx]).trim();
+}
+function cellNum(row, idx){
+  const v = row ? row[idx] : undefined;
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function parseGastos(rows){
+  let ingreso = 0, gastos = [], proximoPago = null;
+  let headerIdx = -1;
+  rows.forEach((row,i)=>{
+    if(cellText(row,1).toLowerCase().includes('ingreso catorcenal') && ingreso===0){
+      ingreso = cellNum(row,2);
+    }
+    if(cellText(row,1).toLowerCase().includes('próxima fecha de pago') || cellText(row,1).toLowerCase().includes('proxima fecha de pago')){
+      const raw = row[2];
+      if(raw instanceof Date){ proximoPago = raw; }
+      else if(raw){
+        const parsed = new Date(raw);
+        if(!isNaN(parsed)) proximoPago = parsed;
+      }
+    }
+    if(cellText(row,1).toLowerCase().includes('gasto') && cellText(row,2).toLowerCase().includes('monto')){
+      headerIdx = i;
+    }
+  });
+  if(headerIdx>=0){
+    for(let i=headerIdx+1;i<rows.length;i++){
+      const nombre = cellText(rows[i],1);
+      if(!nombre || nombre.toLowerCase().includes('total')) break;
+      gastos.push({nombre, monto:cellNum(rows[i],2)});
+    }
+  }
+  return {ingreso, gastos, proximoPago};
+}
+
+function parseDeudas(rows){
+  let deudas = [];
+  let headerIdx = -1;
+  rows.forEach((row,i)=>{
+    if(cellText(row,1).toLowerCase().includes('deuda') && cellText(row,2).toLowerCase().includes('monto')){
+      headerIdx = i;
+    }
+  });
+  if(headerIdx>=0){
+    for(let i=headerIdx+1;i<rows.length;i++){
+      const nombre = cellText(rows[i],1);
+      if(!nombre || nombre.toLowerCase().includes('total')) break;
+      deudas.push({nombre, monto:cellNum(rows[i],2), pagado:cellNum(rows[i],3)});
+    }
+  }
+  return deudas;
+}
+
+function parseAhorro(rows){
+  let ahorros = [];
+  let headerIdx = -1;
+  rows.forEach((row,i)=>{
+    if(cellText(row,1).toLowerCase().includes('fecha')){ headerIdx = i; }
+  });
+  if(headerIdx>=0){
+    for(let i=headerIdx+1;i<rows.length;i++){
+      const fecha = cellText(rows[i],1);
+      const monto = cellNum(rows[i],2);
+      if(fecha && monto){ ahorros.push({fecha, monto}); }
+    }
+  }
+  return ahorros;
+}
+
+function sheetRows(wb, name){
+  const ws = wb.Sheets[name];
+  if(!ws) return [];
+  if(ws['!ref']){
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    range.s.c = 0; range.s.r = 0;
+    ws['!ref'] = XLSX.utils.encode_range(range);
+  }
+  return XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+}
+
+async function loadData(){
+  try{
+    const res = await fetch('./data.xlsx?t=' + Date.now());
+    if(!res.ok) throw new Error('no encontrado');
+    const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array', cellDates:true});
+
+    const gastosRows = sheetRows(wb, 'Gastos');
+    const deudasRows = sheetRows(wb, 'Deudas');
+    const ahorroRows = sheetRows(wb, 'Ahorro');
+
+    const {ingreso, gastos, proximoPago} = parseGastos(gastosRows);
+    const deudas = parseDeudas(deudasRows);
+    const ahorros = parseAhorro(ahorroRows);
+
+    state = {ingreso, gastos, deudas, ahorros, proximoPago};
+
+    document.getElementById('ultimaActualizacion').textContent =
+      'Actualizado ' + new Date().toLocaleString('es-MX', {dateStyle:'medium', timeStyle:'short'});
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('refreshBtn').style.display = 'block';
+    render();
+  }catch(e){
+    console.error(e);
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('errorScreen').style.display = 'flex';
+  }
+}
+
+function money(n){ return '$' + Number(n).toLocaleString('es-MX', {maximumFractionDigits:0}); }
+function gastosFijos(){ return state.gastos.reduce((a,g)=>a+Number(g.monto),0); }
+function libre(){ return state.ingreso - gastosFijos(); }
+function deudaTotal(){ return state.deudas.reduce((a,d)=>a + (d.monto - d.pagado), 0); }
+
+function render(){
+  const g = gastosFijos(), l = libre(), dt = deudaTotal();
+  document.getElementById('rIngreso').textContent = money(state.ingreso);
+  document.getElementById('rGastos').textContent = money(g);
+  document.getElementById('rLibre').textContent = money(l);
+  document.getElementById('rDeuda').textContent = money(dt);
+  document.getElementById('headerDeuda').textContent = money(dt);
+
+  const pct = state.ingreso ? g / state.ingreso : 0;
+  const sem = document.getElementById('semaforo');
+  const semTxt = document.getElementById('semaforoTxt');
+  sem.className = 'semaforo';
+  if(pct < 0.6){ sem.classList.add('verde'); semTxt.innerHTML = 'Vas bien: tus gastos fijos usan <b>'+Math.round(pct*100)+'%</b> de tu ingreso.'; }
+  else if(pct < 0.85){ sem.classList.add('amarillo'); semTxt.innerHTML = 'Cuidado: tus gastos fijos usan <b>'+Math.round(pct*100)+'%</b> de tu ingreso.'; }
+  else { sem.classList.add('rojo'); semTxt.innerHTML = 'Alerta: tus gastos fijos usan <b>'+Math.round(pct*100)+'%</b> de tu ingreso.'; }
+
+  renderGastos(); renderDeudas(); renderChain(); renderPie();
+  renderAhorro(); renderProximosPagos(); renderCalendario(); renderReportes();
+}
+
+function renderGastos(){
+  const list = document.getElementById('gastosList');
+  list.innerHTML = '';
+  state.gastos.forEach(g=>{
+    const row = document.createElement('div');
+    row.className = 'gasto-row';
+    row.innerHTML = `<span>${g.nombre}</span><span class="m">${money(g.monto)}</span>`;
+    list.appendChild(row);
+  });
+}
+
+function renderChain(){
+  const chain = document.getElementById('chain');
+  chain.innerHTML = '';
+  const l = libre();
+  const total = 8;
+  for(let i=1;i<=total;i++){
+    const coin = document.createElement('div');
+    coin.className = 'coin'; coin.textContent = 'C'+i;
+    chain.appendChild(coin);
+    if(i < total){ const link = document.createElement('div'); link.className='link'; chain.appendChild(link); }
+  }
+  const coins = chain.querySelectorAll('.coin');
+  const links = chain.querySelectorAll('.link');
+  let restante = deudaTotal();
+  coins.forEach((c)=>{ if(restante <= 0){ c.classList.add('done'); } restante -= l; });
+  restante = deudaTotal();
+  let marked = false;
+  coins.forEach((c)=>{ if(!marked && restante > 0){ c.classList.add('now'); marked = true; } restante -= l; });
+  restante = deudaTotal();
+  links.forEach((lk,i)=>{ if(restante - l*(i+1) <= 0){ lk.classList.add('done'); } });
+}
+
+function renderDeudas(){
+  const list = document.getElementById('deudasList');
+  list.innerHTML = '';
+  state.deudas.forEach(d=>{
+    const pct = Math.min((d.pagado/d.monto)*100, 100) || 0;
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML = `
+      <div class="top"><span class="nombre">${d.nombre}</span><span class="cifras">${money(d.pagado)} / ${money(d.monto)}</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>`;
+    list.appendChild(row);
+  });
+  const l = libre(), dt = deudaTotal();
+  const plan = document.getElementById('planTexto');
+  if(dt<=0){
+    plan.textContent = '¡Ya no debes nada! Ahora todo tu libre puede ir a ahorro y metas.';
+  } else {
+    const catorcenas = Math.ceil(dt / Math.max(l,1));
+    plan.innerHTML = `Con tu libre actual de <b class="mono">${money(l)}</b> por catorcena, si destinas todo a deuda, terminarías de pagar en <b>${catorcenas} catorcena(s)</b> (~${Math.ceil(catorcenas/2)} mes(es)). Si prefieres ir más cómodo, destina la mitad (${money(l/2)}) y tardarías ${Math.ceil(dt/(l/2))} catorcenas.`;
+  }
+}
+
+function renderPie(){
+  const ctx = document.getElementById('pieGastos');
+  const labels = state.gastos.map(g=>g.nombre).concat(['Libre']);
+  const data = state.gastos.map(g=>g.monto).concat([Math.max(libre(),0)]);
+  const palette = ['#F28B9E','#C9A0DC','#A8D8B9','#F4C6DE','#D9C2ED','#E8B0D0','#B892D6','#F8E8F5'];
+  const colors = data.map((_,i)=> i===data.length-1 ? '#F8E8F5' : palette[i % palette.length]);
+  if(charts.pie) charts.pie.destroy();
+  charts.pie = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:colors, borderColor:'#FDF3FA', borderWidth:3 }]},
+    options:{ plugins:{ legend:{ position:'bottom', labels:{ color:'#4A2358', font:{family:'Work Sans', size:12} } } }, cutout:'62%' }
+  });
+}
+
+function renderAhorro(){
+  const total = state.ahorros.reduce((a,x)=>a+Number(x.monto),0);
+  document.getElementById('ahorroTotal').textContent = money(total);
+  document.getElementById('ahorroCount').textContent = state.ahorros.length;
+  document.getElementById('ahorroProm').textContent = money(state.ahorros.length ? total/state.ahorros.length : 0);
+  const tbody = document.getElementById('ahorroTabla');
+  tbody.innerHTML = '';
+  [...state.ahorros].reverse().forEach(a=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${a.fecha}</td><td>${money(a.monto)}</td>`;
+    tbody.appendChild(tr);
+  });
+  const ctx = document.getElementById('lineAhorro');
+  let running = 0;
+  const points = state.ahorros.map(a=>{ running += Number(a.monto); return running; });
+  if(charts.line) charts.line.destroy();
+  charts.line = new Chart(ctx, {
+    type:'line',
+    data:{ labels: state.ahorros.map(a=>a.fecha), datasets:[{ label:'Acumulado', data: points, borderColor:'#C9A0DC', backgroundColor:'rgba(201,160,220,0.15)', fill:true, tension:.3 }]},
+    options:{ plugins:{ legend:{ display:false } },
+      scales:{ x:{ ticks:{color:'#9B7EA8', font:{size:10}}, grid:{color:'rgba(74,35,88,0.06)'} },
+               y:{ ticks:{color:'#9B7EA8'}, grid:{color:'rgba(74,35,88,0.06)'} } } }
+  });
+}
+
+function renderProximosPagos(){
+  const list = document.getElementById('proximosPagosList');
+  list.innerHTML = '';
+  if(!state.proximoPago){
+    list.innerHTML = '<div style="color:var(--muted); font-size:13px;">Agrega tu próxima fecha de pago en la hoja "Gastos" de tu Excel (celda junto a "Próxima fecha de pago") para ver esto.</div>';
+    return;
+  }
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  let fecha = new Date(state.proximoPago); fecha.setHours(0,0,0,0);
+  // retrocede si la fecha guardada quedó en el pasado, hasta encontrar la próxima futura
+  while(fecha < hoy){ fecha.setDate(fecha.getDate()+14); }
+  const opciones = {weekday:'long', day:'numeric', month:'long'};
+  for(let i=0;i<4;i++){
+    const dias = Math.round((fecha - hoy)/(1000*60*60*24));
+    const el = document.createElement('div');
+    el.className = 'cal-item';
+    const texto = dias===0 ? '¡Hoy!' : dias===1 ? 'Mañana' : `En ${dias} días`;
+    el.innerHTML = `<div><div class="d">${fecha.toLocaleDateString('es-MX', opciones)}</div><div class="items">Depósito de sueldo catorcenal · ${money(state.ingreso)}</div></div><span class="badge">${texto}</span>`;
+    list.appendChild(el);
+    fecha = new Date(fecha); fecha.setDate(fecha.getDate()+14);
+  }
+}
+
+function renderCalendario(){
+  const list = document.getElementById('calendarioList');
+  list.innerHTML = '';
+  const items = [{d:'Día de pago', items:'Depósito de sueldo catorcenal · '+money(state.ingreso)}];
+  state.gastos.forEach(g=> items.push({d:'Cada catorcena', items:g.nombre+' · '+money(g.monto)}));
+  state.deudas.forEach(d=>{ if(d.monto-d.pagado>0) items.push({d:'Pendiente', items:d.nombre+' · '+money(d.monto-d.pagado)+' restante'}); });
+  items.forEach(it=>{
+    const el = document.createElement('div');
+    el.className = 'cal-item';
+    el.innerHTML = `<div><div class="d">${it.d}</div><div class="items">${it.items}</div></div><span class="badge">Pendiente</span>`;
+    list.appendChild(el);
+  });
+}
+
+function renderReportes(){
+  document.getElementById('repIngreso').textContent = money(state.ingreso*2);
+  document.getElementById('repGastos').textContent = money(gastosFijos()*2);
+  document.getElementById('repLibre').textContent = money(libre()*2);
+  document.getElementById('repAhorro').textContent = money(state.ahorros.reduce((a,x)=>a+Number(x.monto),0));
+  document.getElementById('repDeuda').textContent = money(deudaTotal());
+  const ctx = document.getElementById('barReporte');
+  if(charts.bar) charts.bar.destroy();
+  charts.bar = new Chart(ctx, {
+    type:'bar',
+    data:{ labels:['Ingreso','Gastos fijos','Libre','Deuda restante'],
+      datasets:[{ data:[state.ingreso*2, gastosFijos()*2, libre()*2, deudaTotal()], backgroundColor:['#C9A0DC','#F28B9E','#A8D8B9','#9B7EA8'], borderRadius:6 }]},
+    options:{ plugins:{ legend:{ display:false } },
+      scales:{ x:{ ticks:{color:'#4A2358'}, grid:{display:false} }, y:{ ticks:{color:'#9B7EA8'}, grid:{color:'rgba(74,35,88,0.06)'} } } }
+  });
+}
+
+document.getElementById('tabs').addEventListener('click', (e)=>{
+  if(e.target.tagName !== 'BUTTON') return;
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  const view = e.target.getAttribute('data-view');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+});
+
+document.getElementById('btnCompra').onclick = ()=>{
+  const monto = Number(document.getElementById('compraMonto').value);
+  const resultado = document.getElementById('compraResultado');
+  if(!monto){ resultado.className='compra-result'; return; }
+  const l = libre(), dt = deudaTotal();
+  resultado.className = 'compra-result';
+  if(dt > 0 && monto > l*0.3){
+    resultado.classList.add('no');
+    resultado.innerHTML = `<h4>Mejor espérate 🙅‍♀️</h4><p>Todavía debes ${money(dt)} y esta compra es más del 30% de tu libre (${money(l)}).</p>`;
+  } else if(monto > l){
+    resultado.classList.add('no');
+    resultado.innerHTML = `<h4>No te alcanza esta catorcena 😬</h4><p>Tu libre es ${money(l)} y esto cuesta ${money(monto)}.</p>`;
+  } else if(monto > l*0.5){
+    resultado.classList.add('no');
+    resultado.innerHTML = `<h4>Se puede, pero con cuidado 🤏</h4><p>Usarías ${Math.round((monto/l)*100)}% de tu libre. Te quedaría ${money(l-monto)}.</p>`;
+  } else {
+    resultado.classList.add('ok');
+    resultado.innerHTML = `<h4>¡Sí puedes! 🎉</h4><p>Usarías solo ${Math.round((monto/l)*100)}% de tu libre. Te quedarían ${money(l-monto)}.</p>`;
+  }
+};
+
+loadData();
+</script>
+</body>
+</html>
